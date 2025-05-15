@@ -30,11 +30,21 @@ export async function POST(request: NextRequest) {
     await connectToDatabase();
 
     const body = await request.json();
+    console.log("Received product data:", body); // Ирж буй өгөгдлийг логдох
+
+    // 'id' талбарыг шууд устгах
+    delete body.id;
+
     const newProduct = await Product.create(body);
     return NextResponse.json({ product: newProduct }, { status: 201 });
   } catch (error) {
+    console.error("Error creating product:", error); // Алдааны мэдээллийг консолд харуулах
+
     return NextResponse.json(
-      { error: "Failed to create product" + error },
+      {
+        error: "Failed to create product",
+        details: error instanceof Error ? error.message : String(error),
+      },
       { status: 500 }
     );
   }

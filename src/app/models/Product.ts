@@ -9,7 +9,7 @@ const ProductSchema = new Schema(
     sku: {
       type: String,
       unique: true,
-      sparse: true,
+      sparse: true, // Хоосон утгыг зөвшөөрнө
       trim: true,
     },
     title: {
@@ -47,8 +47,10 @@ const ProductSchema = new Schema(
     },
   },
   {
-    // Use the timestamps option to automatically add createdAt and updatedAt
     timestamps: true,
+    id: false, // зөв!
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
   }
 );
 
@@ -61,6 +63,11 @@ ProductSchema.set("toJSON", {
     delete ret.__v;
     return ret;
   },
+});
+
+// Виртуал талбарыг схемд нэмэх (id талбарыг үүсгэхгүй, зөвхөн GET хүсэлтэнд хариулахад _id-г id болгон хувиргана)
+ProductSchema.virtual("id").get(function () {
+  return this._id.toHexString();
 });
 
 // Check if the model exists before creating a new one to prevent overwrite errors

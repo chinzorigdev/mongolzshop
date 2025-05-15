@@ -104,7 +104,7 @@ export default function AddProductPage() {
       }
 
       toast.success("Бүтээгдэхүүн амжилттай нэмэгдлээ");
-      router.push("/admin");
+      router.push("/admin/products");
     } catch (error) {
       toast.error(
         error instanceof Error

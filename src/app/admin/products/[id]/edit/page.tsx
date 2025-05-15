@@ -17,14 +17,19 @@ import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@radix-ui/react-checkbox";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectTrigger,
   SelectValue,
   SelectContent,
   SelectItem,
-} from "@radix-ui/react-select";
+} from "@/components/ui/select";
+import { useState, useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { toast } from "sonner";
+import Image from "next/image";
+import { Product } from "@/types";
 
 // Бүтээгдэхүүний схем
 const formSchema = z.object({
@@ -60,7 +65,14 @@ const categories = [
   { id: "jackets", label: "Куртик" },
   { id: "dresses", label: "Даашинз" },
 ];
+
 export default function EditProductPage() {
+  const params = useParams();
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(true);
+  const [isUploading, setIsUploading] = useState(false);
+  const productId = params.id as string;
+
   // React Hook Form
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -76,6 +88,118 @@ export default function EditProductPage() {
       sku: "",
     },
   });
+
+  // Бараа татах
+  useEffect(() => {
+    const fetchProduct = async () => {
+      try {
+        setIsLoading(true);
+        const response = await fetch(`/api/products/${productId}`);
+
+        if (!response.ok) {
+          throw new Error("Бараа татахад алдаа гарлаа");
+        }
+
+        const product: Product = await response.json();
+
+        // Формын утгыг шинэчлэх
+        form.reset({
+          title: product.title,
+          description: product.description,
+          price: product.price,
+          price_on_sale: product.price_on_sale,
+          category: product.category,
+          image: product.image,
+          sizes: product.sizes,
+          inStock: product.inStock,
+          sku: product.sku || "",
+        });
+      } catch (error) {
+        console.error("Error fetching product:", error);
+        toast.error("Бараа татахад алдаа гарлаа");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (productId) {
+      fetchProduct();
+    }
+  }, [productId, form]);
+
+  // Бараа засварлах
+  const onSubmit = async (data: z.infer<typeof formSchema>) => {
+    try {
+      const response = await fetch(`/api/products/${productId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(
+          error.message || "Бүтээгдэхүүн засварлахад алдаа гарлаа"
+        );
+      }
+
+      toast.success("Бүтээгдэхүүн амжилттай засварлагдлаа");
+      router.push("/admin/products");
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Бүтээгдэхүүн засварлахад алдаа гарлаа"
+      );
+    }
+  };
+
+  // Зураг оруулах
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Зураг оруулах API руу хүсэлт илгээх
+    const formData = new FormData();
+    formData.append("file", file);
+
+    setIsUploading(true);
+    try {
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error("Зураг оруулахад алдаа гарлаа");
+      }
+
+      const data = await response.json();
+      form.setValue("image", data.url, { shouldValidate: true });
+      toast.success("Зураг амжилттай орууллаа");
+    } catch (error) {
+      toast.error(
+        `Зураг оруулахад алдаа гарлаа: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  // Өгөгдөл татаж байх үед loading харуулах
+  if (isLoading) {
+    return (
+      <div className="container py-10 flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+        <p className="ml-2">Өгөгдөл татаж байна...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="container py-10 max-w-4xl mx-auto">
       <div className="flex items-center gap-4 mb-8">
@@ -278,7 +402,7 @@ export default function EditProductPage() {
                           <Input
                             type="file"
                             accept="image/*"
-                            onChange={}
+                            onChange={handleImageUpload}
                             disabled={isUploading}
                           />
                           {isUploading && (
@@ -344,7 +468,7 @@ export default function EditProductPage() {
                   {form.formState.isSubmitting && (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}
-                  Бүтээгдэхүүн нэмэх
+                  Бүтээгдэхүүн засварлах
                 </Button>
               </div>
             </form>
