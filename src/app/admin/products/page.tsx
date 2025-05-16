@@ -116,8 +116,10 @@ export default function AdminPage() {
             <TableRow>
               <TableHead>Зураг</TableHead>
               <TableHead>ID</TableHead>
+              <TableHead>SKU</TableHead>
               <TableHead>Нэр</TableHead>
               <TableHead>Үнэ</TableHead>
+              <TableHead>Тоо ширхэг</TableHead>
               <TableHead>Хэмжээ</TableHead>
               <TableHead>Төлөв</TableHead>
               <TableHead className="text-right">Үйлдэл</TableHead>
@@ -127,7 +129,7 @@ export default function AdminPage() {
             {products.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={7}
+                  colSpan={8}
                   className="text-center py-8 text-neutral-500"
                 >
                   Бүтээгдэхүүн олдсонгүй
@@ -146,6 +148,7 @@ export default function AdminPage() {
                     />
                   </TableCell>
                   <TableCell className="font-medium">{product.id}</TableCell>
+                  <TableCell>{product.sku || "-"}</TableCell>
                   <TableCell>{product.title}</TableCell>
                   <TableCell>
                     {product.price_on_sale ? (
@@ -161,6 +164,7 @@ export default function AdminPage() {
                       formatCurrency(product.price)
                     )}
                   </TableCell>
+                  <TableCell>{product.quantity}</TableCell>
                   <TableCell>{product.sizes.join(", ")}</TableCell>
                   <TableCell>
                     <span

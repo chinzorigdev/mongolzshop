@@ -30,6 +30,7 @@ import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import Image from "next/image";
 import { Product } from "@/types";
+import { brands, colors, categories, sizes } from "@/lib/product-options"; // Шинэ импорт
 
 // Бүтээгдэхүүний схем
 const formSchema = z.object({
@@ -40,31 +41,16 @@ const formSchema = z.object({
   price: z.coerce.number().min(100, { message: "Үнэ 100-с их байх ёстой" }),
   price_on_sale: z.coerce.number().optional().nullable(),
   category: z.string().min(1, { message: "Ангилал заавал сонгоно уу" }),
+  brand: z.string().min(1, { message: "Брэнд заавал сонгоно уу" }), // Шинэ талбар
+  color: z.string().min(1, { message: "Өнгө заавал сонгоно уу" }), // Шинэ талбар
   image: z.string().min(1, { message: "Зураг заавал оруулна уу" }),
   sizes: z
     .array(z.string())
     .min(1, { message: "Дор хаяж нэг хэмжээ сонгоно уу" }),
   inStock: z.boolean(),
   sku: z.string().optional(),
+  quantity: z.coerce.number().min(0, { message: "Тоо хэмжээ 0-с багагүй байх ёстой" }), // Шинэ талбар
 });
-
-const sizes = [
-  { id: "XS", label: "XS" },
-  { id: "S", label: "S" },
-  { id: "M", label: "M" },
-  { id: "L", label: "L" },
-  { id: "XL", label: "XL" },
-  { id: "XXL", label: "XXL" },
-];
-
-const categories = [
-  { id: "shirts", label: "Цамц" },
-  { id: "pants", label: "Өмд" },
-  { id: "shoes", label: "Гутал" },
-  { id: "accessories", label: "Хэрэгсэл" },
-  { id: "jackets", label: "Куртик" },
-  { id: "dresses", label: "Даашинз" },
-];
 
 export default function EditProductPage() {
   const params = useParams();
@@ -82,10 +68,13 @@ export default function EditProductPage() {
       price: 0,
       price_on_sale: null,
       category: "",
+      brand: "Mongolz", // Шинэ талбар
+      color: "black", // Шинэ талбар
       image: "",
       sizes: [],
       inStock: true,
       sku: "",
+      quantity: 0, // Шинэ талбар
     },
   });
 
@@ -109,10 +98,13 @@ export default function EditProductPage() {
           price: product.price,
           price_on_sale: product.price_on_sale,
           category: product.category,
+          brand: product.brand || "Mongolz", // Шинэ талбар
+          color: product.color || "black", // Шинэ талбар
           image: product.image,
           sizes: product.sizes,
           inStock: product.inStock,
           sku: product.sku || "",
+          quantity: product.quantity || 0, // Шинэ талбар
         });
       } catch (error) {
         console.error("Error fetching product:", error);
@@ -310,6 +302,58 @@ export default function EditProductPage() {
                         {categories.map((category) => (
                           <SelectItem key={category.id} value={category.id}>
                             {category.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Брэнд */}
+              <FormField
+                control={form.control}
+                name="brand"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Брэнд</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Брэнд сонгоно уу" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {brands.map((brand) => (
+                          <SelectItem key={brand.id} value={brand.id}>
+                            {brand.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Өнгө */}
+              <FormField
+                control={form.control}
+                name="color"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Өнгө</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Өнгө сонгоно уу" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {colors.map((color) => (
+                          <SelectItem key={color.id} value={color.id}>
+                            {color.label}
                           </SelectItem>
                         ))}
                       </SelectContent>

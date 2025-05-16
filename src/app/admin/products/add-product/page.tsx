@@ -31,6 +31,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, ArrowLeft, ImagePlus } from "lucide-react";
 import Image from "next/image";
+import { brands, colors, categories, sizes } from "@/lib/product-options";
 
 // Бүтээгдэхүүний схем
 const formSchema = z.object({
@@ -41,31 +42,18 @@ const formSchema = z.object({
   price: z.coerce.number().min(100, { message: "Үнэ 100-с их байх ёстой" }),
   price_on_sale: z.coerce.number().optional().nullable(),
   category: z.string().min(1, { message: "Ангилал заавал сонгоно уу" }),
+  brand: z.string().default("Mongolz"),
+  color: z.string().default("black"),
   image: z.string().min(1, { message: "Зураг заавал оруулна уу" }),
   sizes: z
     .array(z.string())
     .min(1, { message: "Дор хаяж нэг хэмжээ сонгоно уу" }),
+  quantity: z.coerce.number().min(0, {
+    message: "Тоо ширхэг хамгийн багадаа 0 байх ёстой",
+  }),
   inStock: z.boolean(),
   sku: z.string().optional(),
 });
-
-const sizes = [
-  { id: "XS", label: "XS" },
-  { id: "S", label: "S" },
-  { id: "M", label: "M" },
-  { id: "L", label: "L" },
-  { id: "XL", label: "XL" },
-  { id: "XXL", label: "XXL" },
-];
-
-const categories = [
-  { id: "shirts", label: "Цамц" },
-  { id: "pants", label: "Өмд" },
-  { id: "shoes", label: "Гутал" },
-  { id: "accessories", label: "Хэрэгсэл" },
-  { id: "jackets", label: "Куртик" },
-  { id: "dresses", label: "Даашинз" },
-];
 
 export default function AddProductPage() {
   const router = useRouter();
@@ -80,8 +68,11 @@ export default function AddProductPage() {
       price: 0,
       price_on_sale: null,
       category: "",
+      brand: "Mongolz",
+      color: "black",
       image: "",
       sizes: [],
+      quantity: 0, // Default: 0 ширхэг
       inStock: true,
       sku: "",
     },
@@ -196,24 +187,6 @@ export default function AddProductPage() {
                     </FormItem>
                   )}
                 />
-
-                {/* SKU */}
-                <FormField
-                  control={form.control}
-                  name="sku"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>SKU</FormLabel>
-                      <FormControl>
-                        <Input placeholder="PROD-001" {...field} />
-                      </FormControl>
-                      <FormDescription>
-                        Бүтээгдэхүүний дотоод кодыг оруулна уу (Заавал биш)
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -258,6 +231,29 @@ export default function AddProductPage() {
                 />
               </div>
 
+              {/* Тоо ширхэг */}
+              <FormField
+                control={form.control}
+                name="quantity"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Тоо ширхэг</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min="0"
+                        placeholder="Барааны тоо ширхэг"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      0-с их бол бараа автоматаар "Нөөцөд байгаа" гэсэн төлөвтэй болно
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
               {/* Ангилал */}
               <FormField
                 control={form.control}
@@ -275,6 +271,58 @@ export default function AddProductPage() {
                         {categories.map((category) => (
                           <SelectItem key={category.id} value={category.id}>
                             {category.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Брэнд */}
+              <FormField
+                control={form.control}
+                name="brand"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Брэнд</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Брэнд сонгоно уу" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {brands.map((brand) => (
+                          <SelectItem key={brand.id} value={brand.id}>
+                            {brand.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Өнгө */}
+              <FormField
+                control={form.control}
+                name="color"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Өнгө</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Өнгө сонгоно уу" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {colors.map((color) => (
+                          <SelectItem key={color.id} value={color.id}>
+                            {color.label}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -409,7 +457,7 @@ export default function AddProductPage() {
                 control={form.control}
                 name="inStock"
                 render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
                     <FormControl>
                       <Checkbox
                         checked={field.value}
@@ -419,7 +467,7 @@ export default function AddProductPage() {
                     <div className="space-y-1 leading-none">
                       <FormLabel>Нөөцөд байгаа</FormLabel>
                       <FormDescription>
-                        Бүтээгдэхүүн худалдаж авах боломжтой эсэх
+                        Тоо ширхэг 0-с их үед автоматаар чагтлагдана
                       </FormDescription>
                     </div>
                   </FormItem>

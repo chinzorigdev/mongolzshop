@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import mongoose, { MongoServerError } from "mongoose";
+import mongoose from "mongoose";
+import { MongoServerError } from "mongodb"; // Шууд mongodb-ээс импортлох
 import Product from "@/app/models/Product";
 import { connectToDatabase } from "@/lib/mongodb";
 
@@ -101,9 +102,9 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const id = params.id;
   try {
     await connectToDatabase();
-    const id = params.id;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return NextResponse.json(
