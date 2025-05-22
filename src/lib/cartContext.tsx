@@ -4,7 +4,7 @@ import { createContext, useContext, useReducer, ReactNode } from "react";
 
 interface CartItem {
   id: string;
-  title: string;
+  name: string; // Changed from title to name
   price: number;
   image: string;
   size: string;
@@ -14,6 +14,7 @@ interface CartItem {
 interface CartState {
   items: CartItem[];
   total: number;
+  isCartOpen: boolean; // Added
 }
 
 type CartAction =
@@ -23,11 +24,15 @@ type CartAction =
       type: "UPDATE_QUANTITY";
       payload: { id: string; size: string; quantity: number };
     }
-  | { type: "CLEAR_CART" };
+  | { type: "CLEAR_CART" }
+  | { type: "OPEN_CART" } // Added
+  | { type: "CLOSE_CART" } // Added
+  | { type: "TOGGLE_CART" }; // Added
 
 const initialState: CartState = {
   items: [],
   total: 0,
+  isCartOpen: false, // Added
 };
 
 const calculateTotal = (items: CartItem[]) => {
@@ -96,7 +101,16 @@ const cartReducer = (state: CartState, action: CartAction): CartState => {
     }
 
     case "CLEAR_CART":
-      return initialState;
+      return { ...initialState, isCartOpen: state.isCartOpen }; // Preserve cart open state
+
+    case "OPEN_CART": // Added
+      return { ...state, isCartOpen: true };
+
+    case "CLOSE_CART": // Added
+      return { ...state, isCartOpen: false };
+
+    case "TOGGLE_CART": // Added
+      return { ...state, isCartOpen: !state.isCartOpen };
 
     default:
       return state;

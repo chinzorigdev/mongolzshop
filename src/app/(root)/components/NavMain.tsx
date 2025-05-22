@@ -1,7 +1,17 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
+import { useCart } from "@/lib/cartContext";
+import { ShoppingCartIcon } from "lucide-react";
+import CartDrawer from "./CartDrawer";
+import { Button } from "@/components/ui/button";
 
 export default function NavMain() {
+  const { state, dispatch } = useCart();
+
+  const totalItems = state.items.reduce((sum, item) => sum + item.quantity, 0);
+
   return (
     <nav className="bg-white">
       <div className="flex items-center justify-between gap-4 md:gap-12 mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-4 h-16 sm:h-24 lg:h-28">
@@ -46,7 +56,25 @@ export default function NavMain() {
             </div>
           </div>
         </div>
+        {/* Cart Icon and Drawer Trigger */}
+        <div className="flex items-center">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="relative rounded-full hover:bg-neutral-100 p-2"
+            onClick={() => dispatch({ type: "TOGGLE_CART" })}
+            aria-label="Сагс харах"
+          >
+            <ShoppingCartIcon className="h-6 w-6 text-gray-700" />
+            {totalItems > 0 && (
+              <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-yellow-500 text-xs font-bold text-white">
+                {totalItems}
+              </span>
+            )}
+          </Button>
+        </div>
       </div>
+      <CartDrawer />
     </nav>
   );
 }

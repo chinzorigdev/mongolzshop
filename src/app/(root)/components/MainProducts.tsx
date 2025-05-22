@@ -1,36 +1,69 @@
 "use client";
-import { useEffect, useState } from "react";
+
+import React, { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { Product } from "@/types"; // Changed ProductType to Product
+import { useCart } from "@/lib/cartContext";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { formatCurrency } from "@/lib/utils"; // Assuming formatCurrency will be added to utils.ts
+import { toast } from "sonner";
+import DOMPurify from "dompurify"; // For sanitizing HTML descriptions
 
-interface Product {
-  id: string;
-  title: string;
-  description: string;
-  price: number;
-  price_on_sale: number | null;
-  image: string;
-  sizes: string[];
-}
+// Skeleton Card Component
+const SkeletonCard = () => (
+  <div className="border border-yellow-200 shadow group grid grid-cols-2 w-full max-w-lg mx-auto items-end justify-center gap-6 sm:gap-8 bg-yellow-50 p-6 sm:p-8 rounded-lg">
+    <div className="relative w-full aspect-w-8 aspect-h-12 rounded-lg overflow-hidden">
+      <Skeleton className="h-full w-full" />
+    </div>
+    <div className="flex flex-col items-left justify-center gap-4 sm:gap-6">
+      <Skeleton className="h-6 w-3/4 mb-2" /> {/* Title */}
+      <Skeleton className="h-8 w-1/2 mb-2" /> {/* Size button */}
+      <Skeleton className="h-4 w-full mb-1" /> {/* Description line 1 */}
+      <Skeleton className="h-4 w-full mb-1" /> {/* Description line 2 */}
+      <Skeleton className="h-4 w-2/3 mb-2" /> {/* Description line 3 */}
+      <div className="flex flex-col lg:flex-row text-sm sm:text-base justify-between items-end gap-2 pb-2 mt-auto">
+        <Skeleton className="h-6 w-1/4" /> {/* Price */}
+        <Skeleton className="h-10 w-2/5" /> {/* Button */}
+      </div>
+    </div>
+  </div>
+);
 
 export default function MainProducts() {
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<Product[]>([]); // Changed ProductType to Product
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectedSizes, setSelectedSizes] = useState<{ [key: string]: string }>(
     {}
   );
 
+  const { dispatch } = useCart();
+
   useEffect(() => {
     const fetchProducts = async () => {
+      setLoading(true);
+      setError(null);
       try {
         const response = await fetch("/api/products");
         if (!response.ok) {
-          throw new Error("Failed to fetch products");
+          throw new Error(`Failed to fetch products: ${response.statusText}`);
         }
         const data = await response.json();
-        setProducts(data);
-      } catch (error) {
-        console.error("Error fetching products:", error);
+        if (Array.isArray(data.products)) {
+          setProducts(data.products);
+        } else {
+          console.error("Fetched data.products is not an array:", data);
+          setProducts([]); // Fallback to empty array
+          throw new Error("Product data is not in expected format.");
+        }
+      } catch (err) {
+        console.error("Error fetching products:", err);
+        setError(
+          err instanceof Error ? err.message : "An unknown error occurred."
+        );
+        setProducts([]); // Ensure products is an array on error
       } finally {
         setLoading(false);
       }
@@ -39,31 +72,96 @@ export default function MainProducts() {
     fetchProducts();
   }, []);
 
-  // Function to handle size selection
   const handleSizeSelect = (productId: string, size: string) => {
-    setSelectedSizes({
-      ...selectedSizes,
+    setSelectedSizes((prevSizes) => ({
+      ...prevSizes,
       [productId]: size,
-    });
+    }));
+    // Close the dropdown manually if needed, e.g. by removing 'hidden' class or using a ref
+    // For Flowbite/Tailwind Components, their JS should handle this if attributes are correct.
+    const dropdownElement = document.getElementById(`dropdown-${productId}`);
+    if (dropdownElement) {
+      // This is a direct DOM manipulation, consider a React-way if issues arise
+      // For example, manage dropdown visibility with React state per card.
+      // However, to keep UI structure, this might be what's expected if using external JS for dropdowns.
+      dropdownElement.classList.add("hidden"); // Assuming 'hidden' controls visibility
+    }
   };
 
-  // Function to add to cart
-  const addToCart = (product: Product) => {
-    const size = selectedSizes[product.id] || product.sizes[0];
-    // Here you would implement your cart functionality
-    console.log("Adding to cart:", { ...product, size });
+  const handleAddToCart = (product: Product) => {
+    // Changed ProductType to Product
+    const selectedSize =
+      selectedSizes[product.id] ||
+      (product.sizes.length > 0 ? product.sizes[0] : "N/A");
 
-    // Example: Open cart drawer
-    const cartDrawer = document.querySelector('[data-drawer="cart"]');
-    if (cartDrawer) {
-      cartDrawer.classList.add("open");
+    dispatch({
+      type: "ADD_ITEM",
+      payload: {
+        id: product.id,
+        name: product.title, // This was correct, product.title maps to cartItem.name
+        price: product.price_on_sale || product.price,
+        image: product.image,
+        size: selectedSize,
+        quantity: 1,
+      },
+    });
+    toast.success(`${product.title} (${selectedSize}) сагсанд нэмэгдлээ.`);
+    dispatch({ type: "OPEN_CART" }); // Open cart drawer
+  };
+
+  // Toggle dropdown visibility - a more React-way to handle this
+  // You would need to add a state like: const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
+  const toggleDropdown = (productId: string) => {
+    const dropdownElement = document.getElementById(`dropdown-${productId}`);
+    if (dropdownElement) {
+      dropdownElement.classList.toggle("hidden");
+      if (!dropdownElement.classList.contains("hidden")) {
+        // Potentially position it using Popper.js if it's not automatic
+        // This part is tricky if relying on external JS like Flowbite.
+        // For simplicity, this example just toggles 'hidden'.
+        // A robust solution might involve a React-based dropdown component.
+      }
     }
   };
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center py-20">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-yellow-500"></div>
+      <div className="max-w-6xl mx-auto py-6 px-4 sm:py-8 sm:px-6 lg:px-8">
+        <div className="flex items-baseline justify-between border-b pb-1 mb-8">
+          <h2 className="text-2xl font-extrabold tracking-tight text-gray-600">
+            Бүх бараа
+          </h2>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-y-6 gap-x-3 md:gap-x-6">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <SkeletonCard key={index} />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-6xl mx-auto py-6 px-4 sm:py-8 sm:px-6 lg:px-8 text-center">
+        <h2 className="text-2xl font-extrabold tracking-tight text-gray-600 mb-4">
+          Бүх бараа
+        </h2>
+        <p className="text-red-500">Алдаа гарлаа: {error}</p>
+        <Button onClick={() => window.location.reload()} className="mt-4">
+          Дахин оролдох
+        </Button>
+      </div>
+    );
+  }
+
+  if (products.length === 0) {
+    return (
+      <div className="max-w-6xl mx-auto py-6 px-4 sm:py-8 sm:px-6 lg:px-8 text-center">
+        <h2 className="text-2xl font-extrabold tracking-tight text-gray-600 mb-4">
+          Бүх бараа
+        </h2>
+        <p>Илэрц олдсонгүй.</p>
       </div>
     );
   }
@@ -80,330 +178,153 @@ export default function MainProducts() {
       <div className="py-6">
         <div
           className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8"
-          data-aos="zoom-in"
-          data-aos-duration="2000"
+          // data-aos="zoom-in" data-aos-duration="2000" // AOS can be kept if desired
         >
           <div className="mb-9 lg:mb-10 xl:mb-12">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-y-6 gap-x-3 md:gap-x-6">
-              <div
-                data-product=""
-                className="border border-yellow-200 shadow group grid grid-cols-2 w-full max-w-lg mx-auto items-end justify-center gap-6 sm:gap-8 bg-yellow-50 p-6 sm:p-8 rounded-lg aos-init aos-animate"
-              >
-                <div className="relative w-full aspect-w-8 aspect-h-12 rounded-lg overflow-hidden">
-                  <a href="product.html">
-                    <Image
-                      src="https://kom-uploads.s3.amazonaws.com/store-1599/product-17624--1733167005-w400.jpg"
-                      alt="The MongolZ - Pro Jersey 2025"
-                      className="w-full h-full object-center object-cover"
-                      width={400}
-                      height={600}
-                    />
-                  </a>
-                </div>
-                <div className="flex flex-col items-left justify-center gap-4 sm:gap-6">
-                  <div className="line-clamp-2">
-                    <a
-                      href="product.html"
-                      className="block text-left text-base sm:text-lg font-semibold text-gray-900"
-                    >
-                      The MongolZ - Pro Jersey&nbsp;2025
-                    </a>
-                  </div>
-                  <button
-                    data-dropdown-toggle="dropdown-product-17624-61293"
-                    className="text-yellow-600 font-medium text-sm inline-flex items-center max-w-full"
-                    type="button"
-                  >
-                    <span
-                      data-product-option="17624"
-                      data-product-option-idx="1"
-                      className="truncate"
-                    >
-                      XL
-                    </span>
-
-                    <svg
-                      className="w-3.5 h-3.5 pt-0.5 ml-1"
-                      viewBox="0 0 20 20"
-                      fill="currentColor"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                        clipRule="evenodd"
-                      ></path>
-                    </svg>
-                  </button>
+              {products.map(
+                (
+                  product: Product // Added type Product to product parameter
+                ) => (
                   <div
-                    id="dropdown-product-17624-61293"
-                    className="z-20 bg-white divide-y divide-gray-200 rounded shadow w-auto hidden"
-                    style={{
-                      position: "absolute",
-                      inset: "0px auto auto 0px",
-                      margin: "0px",
-                      transform: "translate(375px, 201px)",
-                    }}
-                    data-popper-placement="bottom"
+                    key={product.id}
+                    data-product={product.id}
+                    className="border border-yellow-200 shadow group grid grid-cols-2 w-full max-w-lg mx-auto items-stretch justify-center gap-6 sm:gap-8 bg-yellow-50 p-6 sm:p-8 rounded-lg"
                   >
-                    <ul
-                      className="py-1 divide-y divide-gray-200 text-sm text-gray-700"
-                      aria-labelledby="dropdownDefaultButton"
-                    >
-                      <li>
-                        <a
-                          href="#"
-                          data-action="product_option_choose"
-                          data-action-option-idx="1"
-                          className="block px-4 py-2 hover:bg-gray-100"
-                          onClick={() => handleSizeSelect("17624", "XL")}
+                    <div className="relative w-full aspect-w-8 aspect-h-12 rounded-lg overflow-hidden flex items-center justify-center">
+                      <Link
+                        href={`/products/${product.id}`}
+                        legacyBehavior={false}
+                      >
+                        <Image
+                          src={product.image || "/img/placeholder.png"} // Fallback image
+                          alt={product.title}
+                          className="w-full h-full object-contain group-hover:opacity-75 transition-opacity duration-300"
+                          width={400} // Provide appropriate width
+                          height={600} // Provide appropriate height
+                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" // Example sizes
+                        />
+                      </Link>
+                    </div>
+                    <div className="flex flex-col items-start justify-between gap-3 sm:gap-4">
+                      {" "}
+                      {/* Changed to items-start and justify-between for better layout control */}
+                      <div className="w-full">
+                        <div className="line-clamp-2 mb-1">
+                          <Link
+                            href={`/products/${product.id}`}
+                            legacyBehavior={false}
+                          >
+                            <span className="block text-left text-base sm:text-lg font-semibold text-gray-900 hover:text-yellow-600 cursor-pointer">
+                              {product.title}
+                            </span>
+                          </Link>
+                        </div>
+
+                        {product.sizes && product.sizes.length > 0 && (
+                          <div className="relative">
+                            <button
+                              onClick={() => toggleDropdown(product.id)}
+                              // data-dropdown-toggle={`dropdown-${product.id}`} // Kept for compatibility if Flowbite/etc. JS is used
+                              className="text-yellow-600 font-medium text-sm inline-flex items-center max-w-full py-1 px-2 border border-yellow-400 rounded hover:bg-yellow-100"
+                              type="button"
+                            >
+                              <span className="truncate">
+                                {selectedSizes[product.id] || product.sizes[0]}
+                              </span>
+                              <svg
+                                className="w-3.5 h-3.5 pt-0.5 ml-1"
+                                viewBox="0 0 20 20"
+                                fill="currentColor"
+                                xmlns="http://www.w3.org/2000/svg"
+                              >
+                                <path
+                                  fillRule="evenodd"
+                                  d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                                  clipRule="evenodd"
+                                ></path>
+                              </svg>
+                            </button>
+                            <div
+                              id={`dropdown-${product.id}`}
+                              className="z-20 bg-white divide-y divide-gray-200 rounded shadow w-auto hidden absolute mt-1" // Added 'absolute' and 'mt-1' for positioning
+                              // style={{ position: "absolute", inset: "0px auto auto 0px", margin: "0px" }} // Removed fixed transform
+                              data-popper-placement="bottom-start" // Adjusted for popper
+                            >
+                              <ul
+                                className="py-1 divide-y divide-gray-200 text-sm text-gray-700"
+                                aria-labelledby={`dropdown-button-${product.id}`} // Give button an id if using this
+                              >
+                                {product.sizes.map(
+                                  (
+                                    size: string // Added type string to size parameter
+                                  ) => (
+                                    <li key={size}>
+                                      <button
+                                        onClick={() =>
+                                          handleSizeSelect(product.id, size)
+                                        }
+                                        className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                                      >
+                                        {size}
+                                      </button>
+                                    </li>
+                                  )
+                                )}
+                              </ul>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      {product.description && (
+                        <div
+                          className="text-xs sm:text-sm text-gray-500 text-left line-clamp-3 my-2 mce-content-body" // line-clamp for brevity
+                          dangerouslySetInnerHTML={{
+                            __html: DOMPurify.sanitize(product.description),
+                          }}
+                        />
+                      )}
+                      <div className="w-full mt-auto pt-2">
+                        {" "}
+                        {/* Pushes price and button to bottom */}
+                        <p className="text-yellow-600 font-bold text-base sm:text-lg tugrik mb-2 text-left">
+                          {formatCurrency(
+                            product.price_on_sale || product.price
+                          )}
+                          {product.price_on_sale && (
+                            <span className="text-gray-400 line-through ml-2 text-sm">
+                              {formatCurrency(product.price)}
+                            </span>
+                          )}
+                        </p>
+                        <Button
+                          onClick={() => handleAddToCart(product)}
+                          variant="outline"
+                          className="w-full flex gap-2 items-center justify-center text-gray-600 hover:text-yellow-700 hover:border-yellow-500 border-gray-400"
+                          size="default"
                         >
-                          XL
-                        </a>
-                      </li>
-                      <li>
-                        <a
-                          href="#"
-                          data-action="product_option_choose"
-                          data-action-option-idx="2"
-                          className="block px-4 py-2 hover:bg-gray-100"
-                          onClick={() => handleSizeSelect("17624", "2XL")}
-                        >
-                          2XL
-                        </a>
-                      </li>
-                      <li>
-                        <a
-                          href="#"
-                          data-action="product_option_choose"
-                          data-action-option-idx="3"
-                          className="block px-4 py-2 hover:bg-gray-100"
-                          onClick={() => handleSizeSelect("17624", "3XL")}
-                        >
-                          3XL
-                        </a>
-                      </li>
-                      <li>
-                        <a
-                          href="#"
-                          data-action="product_option_choose"
-                          data-action-option-idx="4"
-                          className="block px-4 py-2 hover:bg-gray-100"
-                          onClick={() => handleSizeSelect("17624", "5XL")}
-                        >
-                          5XL
-                        </a>
-                      </li>
-                    </ul>
-                  </div>
-                  <div className="text-sm sm:text-base text-gray-500 text-left">
-                    <div className="mce-content-body line-clamp-6 x-fix-line-clamp-6">
-                      <p>Official Jersey.</p>
-                      <p>
-                        <em>Ази size учраас нэг size томруулж аваарай.</em>
-                      </p>
+                          <svg
+                            className="h-4 w-4"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            aria-hidden="true"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="2"
+                              d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
+                            ></path>
+                          </svg>
+                          <span className="block">Захиалах</span>
+                        </Button>
+                      </div>
                     </div>
                   </div>
-
-                  <div className="flex flex-col lg:flex-row text-sm sm:text-base justify-between items-end gap-2 pb-2">
-                    <p className="text-yellow-600 font-bold tugrik">150’000</p>
-                    <a
-                      data-drawer-open="cart"
-                      href="#"
-                      className="flex gap-2 items-center justify-center text-gray-500 hover:text-yellow-600"
-                      onClick={() =>
-                        addToCart({
-                          id: "17624",
-                          title: "The MongolZ - Pro Jersey 2025",
-                          description: "Official Jersey.",
-                          price: 150000,
-                          price_on_sale: null,
-                          image:
-                            "https://kom-uploads.s3.amazonaws.com/store-1599/product-17624--1733167005-w400.jpg",
-                          sizes: ["XL", "2XL", "3XL", "5XL"],
-                        })
-                      }
-                    >
-                      <svg
-                        className="h-4 w-4"
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        aria-hidden="true"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth="2"
-                          d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
-                        ></path>
-                      </svg>
-                      <span className="block">Захиалах</span>
-                    </a>
-                  </div>
-                </div>
-              </div>
-
-              <div
-                data-product=""
-                className="border border-pink-200 shadow group grid grid-cols-2 w-full max-w-lg mx-auto items-end justify-center gap-6 sm:gap-8 bg-pink-50 p-6 sm:p-8 rounded-lg aos-init aos-animate"
-                data-aos="zoom-in"
-                data-aos-duration="1500"
-              >
-                <div className="relative w-full aspect-w-8 aspect-h-12 rounded-lg overflow-hidden">
-                  <a href="/product/63535">
-                    <Image
-                      src="https://kom-uploads.s3.amazonaws.com/store-1599/product-63535--1736944491-w400.jpg"
-                      alt="The MongolZ - Kids Jersey (No Sponsor Logos)"
-                      className="w-full h-full object-center object-cover"
-                      width={400}
-                      height={600}
-                    />
-                  </a>
-                </div>
-                <div className="flex flex-col items-left justify-center gap-4 sm:gap-6">
-                  <div className="line-clamp-2">
-                    <a
-                      href="/product/63535"
-                      className="block text-left text-base sm:text-lg font-semibold text-gray-900"
-                    >
-                      The MongolZ - Kids Jersey (No Sponsor Logos)
-                    </a>
-                  </div>
-                  <button
-                    data-dropdown-toggle="dropdown-product-63535-94564"
-                    className="text-pink-600 font-medium text-sm inline-flex items-center max-w-full"
-                    type="button"
-                  >
-                    <span
-                      data-product-option="63535"
-                      data-product-option-idx="1"
-                      className="truncate"
-                    >
-                      2XS
-                    </span>
-
-                    <svg
-                      className="w-3.5 h-3.5 pt-0.5 ml-1"
-                      viewBox="0 0 20 20"
-                      fill="currentColor"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                        clipRule="evenodd"
-                      ></path>
-                    </svg>
-                  </button>
-                  <div
-                    id="dropdown-product-63535-94564"
-                    className="z-20 bg-white divide-y divide-gray-200 rounded shadow w-auto hidden"
-                    style={{
-                      position: "absolute",
-                      inset: "0px auto auto 0px",
-                      margin: "0px",
-                      transform: "translate(375px, 225px)",
-                    }}
-                    data-popper-placement="bottom"
-                  >
-                    <ul
-                      className="py-1 divide-y divide-gray-200 text-sm text-gray-700"
-                      aria-labelledby="dropdownDefaultButton"
-                    >
-                      <li>
-                        <a
-                          href="#"
-                          data-action="product_option_choose"
-                          data-action-option-idx="1"
-                          className="block px-4 py-2 hover:bg-gray-100"
-                          onClick={() => handleSizeSelect("63535", "2XS")}
-                        >
-                          2XS
-                        </a>
-                      </li>
-                      <li>
-                        <a
-                          href="#"
-                          data-action="product_option_choose"
-                          data-action-option-idx="2"
-                          className="block px-4 py-2 hover:bg-gray-100"
-                          onClick={() => handleSizeSelect("63535", "3XS")}
-                        >
-                          3XS
-                        </a>
-                      </li>
-                      <li>
-                        <a
-                          href="#"
-                          data-action="product_option_choose"
-                          data-action-option-idx="3"
-                          className="block px-4 py-2 hover:bg-gray-100"
-                          onClick={() => handleSizeSelect("63535", "4XS")}
-                        >
-                          4XS
-                        </a>
-                      </li>
-                      <li>
-                        <a
-                          href="#"
-                          data-action="product_option_choose"
-                          data-action-option-idx="4"
-                          className="block px-4 py-2 hover:bg-gray-100"
-                          onClick={() => handleSizeSelect("63535", "5XS")}
-                        >
-                          5XS
-                        </a>
-                      </li>
-                    </ul>
-                  </div>
-                  <div className="text-sm sm:text-base text-gray-500 text-left">
-                    <div className="mce-content-body line-clamp-6 x-fix-line-clamp-6">
-                      <p>Хүүхдэд зориулсан жижиг размерын өмсгөл.</p>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col lg:flex-row text-sm sm:text-base justify-between items-end gap-2 pb-2">
-                    <p className="text-pink-600 font-bold tugrik">80’000</p>
-                    <a
-                      data-drawer-open="cart"
-                      href="#"
-                      className="flex gap-2 items-center justify-center text-gray-500 hover:text-pink-600"
-                      onClick={() =>
-                        addToCart({
-                          id: "63535",
-                          title: "The MongolZ - Kids Jersey (No Sponsor Logos)",
-                          description:
-                            "Хүүхдэд зориулсан жижиг размерын өмсгөл.",
-                          price: 80000,
-                          price_on_sale: null,
-                          image:
-                            "https://kom-uploads.s3.amazonaws.com/store-1599/product-63535--1736944491-w400.jpg",
-                          sizes: ["2XS", "3XS", "4XS", "5XS"],
-                        })
-                      }
-                    >
-                      <svg
-                        className="h-4 w-4"
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        aria-hidden="true"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth="2"
-                          d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
-                        ></path>
-                      </svg>
-                      <span className="block">Захиалах</span>
-                    </a>
-                  </div>
-                </div>
-              </div>
+                )
+              )}
             </div>
           </div>
         </div>
