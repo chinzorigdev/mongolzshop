@@ -1,6 +1,49 @@
+"use client";
 import Link from "next/link";
 import Image from "next/image";
+import { useCart } from "@/lib/cartContext";
+import { formatCurrency } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+
 export default function Checkout() {
+  const { state } = useCart();
+  const { items, total } = state;
+
+  const shippingCost = items.length > 0 && items.length < 3 ? 6000 : 0;
+  const finalTotal = total + shippingCost;
+
+  if (items.length === 0) {
+    return (
+      <section>
+        <div className="bg-white py-12">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900">
+              Захиалгаа баталгаажуулах
+            </h1>
+            <div className="mt-12">
+              <Image
+                src="/img/empty-cart.svg"
+                alt="Хоосон сагс"
+                width={150}
+                height={150}
+                className="mx-auto mb-8 opacity-60"
+              />
+              <p className="text-xl text-gray-700 mb-4">
+                Таны сагс хоосон байна.
+              </p>
+              <p className="text-gray-500 mb-8">
+                Захиалга хийхийн тулд эхлээд сагсандаа бараа нэмнэ үү.
+              </p>
+              <Button asChild variant="outline">
+                <Link href="/">Дэлгүүр лүү буцах</Link>
+              </Button>
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <>
       <section>
@@ -13,31 +56,46 @@ export default function Checkout() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 mt-12">
               {/* Cart Section */}
               <div className="bg-gray-50 rounded-lg p-6">
-                <h2 className="sr-only">Сагсан дахь бараанууд</h2>
+                <h2 className="text-xl font-semibold text-gray-800 mb-6">
+                  Сагсан дахь бараанууд
+                </h2>
                 <ul className="-my-6 divide-y divide-gray-200">
-                  <li className="py-6 flex space-x-6">
-                    <Image
-                      src="https://kom-uploads.s3.amazonaws.com/store-1599/product-17624--1733167005-w400.jpg"
-                      alt="MongolZ Jersey"
-                      className="h-24 w-24 object-cover rounded-md"
-                      width={100}
-                      height={100}
-                    />
-                    <div className="flex-auto">
-                      <h3 className="text-base font-medium text-gray-900">
-                        The MongolZ - Pro Jersey 2025
-                      </h3>
-                      <p className="text-sm text-gray-500">XL</p>
-                      <p className="text-gray-500">150’000 × 1</p>
-                    </div>
-                    <p className="text-sm font-medium text-gray-900">150’000</p>
-                  </li>
+                  {items.map((item) => (
+                    <li
+                      key={`${item.id}-${item.size}`}
+                      className="py-6 flex space-x-6"
+                    >
+                      <Image
+                        src={item.image || "/img/placeholder.png"}
+                        alt={item.name}
+                        className="h-24 w-24 object-cover rounded-md flex-shrink-0"
+                        width={96}
+                        height={96}
+                      />
+                      <div className="flex-auto">
+                        <h3 className="text-base font-medium text-gray-900">
+                          {item.name}
+                        </h3>
+                        {item.size && item.size !== "N/A" && (
+                          <p className="text-sm text-gray-500">
+                            Размер: {item.size}
+                          </p>
+                        )}
+                        <p className="text-sm text-gray-500">
+                          {formatCurrency(item.price)} × {item.quantity}
+                        </p>
+                      </div>
+                      <p className="text-sm font-medium text-gray-900 flex-shrink-0">
+                        {formatCurrency(item.price * item.quantity)}
+                      </p>
+                    </li>
+                  ))}
                 </ul>
 
                 <dl className="text-sm font-medium text-gray-500 mt-10 space-y-4">
                   <div className="flex justify-between">
                     <dt>Захиалгын дүн</dt>
-                    <dd className="text-gray-900">150’000</dd>
+                    <dd className="text-gray-900">{formatCurrency(total)}</dd>
                   </div>
                   <div className="flex justify-between">
                     <dt className="flex items-center">
@@ -54,16 +112,21 @@ export default function Checkout() {
                             clipRule="evenodd"
                           ></path>
                         </svg>
-                        <span className="absolute left-1/2 -top-8 transform -translate-x-1/2 bg-gray-600 text-white text-xs p-2 rounded-md hidden group-hover:block">
-                          3 тооноос цөөн бараанд төлбөртэй.
+                        <span className="absolute left-1/2 -top-8 transform -translate-x-1/2 bg-gray-600 text-white text-xs p-2 rounded-md hidden group-hover:block w-max max-w-xs">
+                          3-аас доош тооны бараанд 6,000₮, бусад тохиолдолд
+                          үнэгүй.
                         </span>
                       </span>
                     </dt>
-                    <dd className="text-gray-900">6’000</dd>
+                    <dd className="text-gray-900">
+                      {formatCurrency(shippingCost)}
+                    </dd>
                   </div>
                   <div className="flex justify-between border-t border-gray-200 text-gray-900 pt-6">
                     <dt className="text-base font-semibold">Нийт төлбөр</dt>
-                    <dd className="text-base font-semibold">156’000</dd>
+                    <dd className="text-base font-semibold">
+                      {formatCurrency(finalTotal)}
+                    </dd>
                   </div>
                 </dl>
               </div>

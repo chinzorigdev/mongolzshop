@@ -99,13 +99,14 @@ export async function PUT(
 
 // DELETE метод нэмэх
 export async function DELETE(
-  _request: NextRequest,
+  _request: NextRequest, // Add _request parameter
   { params }: { params: { id: string } }
 ) {
-  const id = params.id;
   try {
     await connectToDatabase();
+    const id = params.id;
 
+    // Check if the id is a valid MongoDB ObjectId
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return NextResponse.json(
         { error: "Invalid product ID format" },
@@ -118,6 +119,8 @@ export async function DELETE(
     if (!deletedProduct) {
       return NextResponse.json({ error: "Product not found" }, { status: 404 });
     }
+
+    // Optionally, you might want to delete images from Cloudinary here
 
     return NextResponse.json(
       { message: "Product deleted successfully" },
